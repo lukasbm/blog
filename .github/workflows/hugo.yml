@@ -43,7 +43,7 @@ jobs:
 
       - name: Show Setup
         run: |
-          sudo apt install -y tree && tree -L 3 /home/runner/work
+          sudo apt install -y tree && tree -L 3 /home/runner/work/blog/blog
 
       - name: Checkout
         uses: actions/checkout@v4
