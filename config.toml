@@ -1,3 +1,32 @@
 baseURL = 'http://lukasbm.github.io/'
 languageCode = 'en-us'
 title = 'My New Hugo Site'
+theme = 'risotto'
+
+author = "Lukas Böhm"
+
+# Automatically add content sections to main menu
+sectionPagesMenu = "main"
+
+# include in web searches
+[params]
+noindex = false
+
+
+# Sidebar: about/bio
+[params.about]
+title = "Lukas Böhm"
+description = "A simple personal page."
+
+
+[[params.socialLinks]]
+icon = "fa-brands fa-github"
+title = "GitHub"
+url = "https://github.com/lukasbm"
+
+
+[markup]
+[markup.tableOfContents]
+startLevel = 2
+endLevel = 3
+ordered = false
