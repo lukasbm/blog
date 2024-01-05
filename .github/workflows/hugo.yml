@@ -41,6 +41,10 @@ jobs:
       #- name: Install Dart Sass
       #  run: sudo snap install dart-sass
 
+      - name: Show Setup
+        run: |
+          sudo apt install -y tree && tree -L 3 /home/runner/work
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
