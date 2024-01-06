@@ -42,8 +42,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          path: "lukasbm"
 
+      - name: pwd
+        run: pwd
+
+      - name: List repo
+        run: sudo apt install tree -y && tree .
+        
       - name: Setup Pages
         id: pages
         uses: actions/configure-pages@v4
