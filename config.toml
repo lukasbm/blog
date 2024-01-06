@@ -1,6 +1,6 @@
 baseURL = 'http://lukasbm.github.io/'
 languageCode = 'en-us'
-title = 'My New Hugo Site'
+title = 'Some Ramblings by Me'
 theme = 'risotto'
 
 author = "Lukas Böhm"
@@ -11,6 +11,10 @@ sectionPagesMenu = "main"
 # include in web searches
 [params]
 noindex = false
+
+
+[markup.goldmark.renderer]
+unsafe = true # allow inline html (required for giscus)
 
 
 # Sidebar: about/bio
