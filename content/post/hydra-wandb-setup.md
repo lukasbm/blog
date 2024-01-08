@@ -2,6 +2,7 @@
 title = "The Ultimate Setup for AI Research"
 author = "Lukas Böhm"
 description = "Using tools from MLOps to accelerate your AI research"
+draft = True
 +++
 
 Many researches are often presented with having to evaluate a new model on
