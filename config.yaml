@@ -1,0 +1,11 @@
+baseURL: 'http://lukasbm.github.io/'
+languageCode: en-us
+title: Some Ramblings by Me
+theme: ficurinia
+author: Lukas Böhm
+sectionPagesMenu: main
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true

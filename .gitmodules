@@ -1,23 +1,20 @@
-[submodule "risotto-theme"]
+[submodule "themes/risotto"]
 	path = themes/risotto
 	url = https://github.com/joeroe/risotto.git
 	branch = main
 
 # https://themes.gohugo.io/themes/hugo-theme-nightfall/
-[submodule "nightfall-theme"]
+[submodule "themes/nightfall"]
 	path = themes/nightfall
 	url = https://github.com/LordMathis/hugo-theme-nightfall.git
-	branch = main
 
-# https://themes.gohugo.io/themes/poison/
-[submodule "poison-theme"]
-	path = themes/poison
-	url = https://github.com/lukeorth/poison.git
-	branch = master
-
-[submodule "ficurinia-theme"]
+[submodule "themes/ficurinia"]
 	path = themes/ficurinia
 	url = https://gitlab.com/gabmus/hugo-ficurinia.git
-	branch = master
+
+# https://themes.gohugo.io/themes/poison/
+[submodule "themes/poison"]
+	path = themes/poison
+	url = https://github.com/lukeorth/poison.git
 
 # unused: https://themes.gohugo.io/themes/osprey-delight/
