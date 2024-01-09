@@ -14,8 +14,7 @@ but more often just ends up as a giant pile of spaghetti nobody wants to deal wi
 By the time you write your paper and create the graphs and figures your entire workflow
 has become so messy that your productivity grinds to a painful halt.
 
-If you want to pride yourself as a good researcher that publishes high quality, reproducible code,
-you might want to stick around as we explore how we can employ two technologies to transform your workflow, without having to rewrite anything!
+If this sounds familiar, you might want to stick around as we explore how we can employ two technologies to transform your workflow, without having to rewrite anything!
 
 ## Current Problems
 
@@ -26,13 +25,13 @@ Naturally, most people prefer to work fast, thus we end up in this dire situatio
 
 What if i told you there wasn't a tradeoff between working fast and clean.
 
-Currently most research repositories consist of a very rigid codebase that is not very adaptable to change, i.e. new parameters that have an effect on the behaviour.
+Currently most research repositories consist of a very rigid codebase that is not very adaptable to change, i.e. new modules or parameters that have an effect on the behaviour.
 Meanwhile the run configurations are stored in dozens of bash scripts,
 that have endless amounts of duplication and would have to be rewritten if the code changed.
 
 Another common issue is the data handling, especially the output of said scripts.
 They usually lack any form of versioning or metadata,
-making the entire postprocessing step significanctly harder.
+making the postprocessing significanctly harder.
 
 To battle these issues we will explore Hydra-Zen (a lightweights Hydra wrapper) and Weights&Biases (wandb).
 
@@ -40,45 +39,44 @@ To battle these issues we will explore Hydra-Zen (a lightweights Hydra wrapper) 
 Basic tools for configuration like python's `argparse` library require boilerplate to map from the arguments, to the objects or functions they configure and parametrize.
 Hydra, skips this step by mapping a set of yaml configuration file directly to a class or function. "Set of yaml files" sound suspiciously like the aforementioned problem of duplicated scripts that have to be rewritten if the code changes. Yeah, thats exactly the problem with hydra, hence we use [Hydra-Zen](https://mit-ll-responsible-ai.github.io/hydra-zen/), a pure python solution to configuration.
 
-Our other tool, Weights&Biases, is used for versioning the outputs and annotating them with metadata.
+Our other tool, [Weights&Biases](https://wandb.ai/), is used for versioning the outputs and annotating them with metadata.
 As a MLOps tool it closely follows the style of well known CI&CD platforms, where runs are connected to the artifacts they generate for better reproducibility.
-In our case *runs* relate to the models we are training or the data we are processing and *artifacts* relate to the output they produce like model checkpoints, plots, tables, etc. 
+In our case *runs* relate to the models we are training or the data we are processing and *artifacts* relate to the output they produce like model checkpoints, plots, tables, etc.
+These can be linked together to build a completely reproducible pipeline
 
-## Solution
+## Configuration with Hydra
 
-To make this guide more practical, assume the following task function:
+To make this guide more practical, assume the following task function.
+This is our entrypoint we want to make configurable.
+
 ```python
 # in eval_model.py
+from torchvision.datasets import CIFAR10, MNIST
+from torchvision.transforms import ToTensor
+import torch
+
+# task function
 def eval_model(
         model: torch.nn.Module,
         dataloader: torch.utils.data.Dataloader,
-): ...
-```
+) -> EvalResults: ...
 
-with the following helper functions:
-```python
+# with the following helper functions:
 def make_cifar_loader(batch_size: int = 64) -> DataLoader:
-    from torchvision.datasets import CIFAR10
-    from torchvision.transforms import ToTensor
 
     dataset = CIFAR10(root="data", train=True, transform=ToTensor(), download=True)
     return DataLoader(dataset, batch_size=batch_size)
 
-
 def make_mnist_loader(batch_size: int = 64) -> DataLoader:
-    from torchvision.datasets import MNIST
-    from torchvision.transforms import ToTensor
-
     dataset = MNIST(root="data", train=True, transform=ToTensor(), download=True)
     return DataLoader(dataset, batch_size=batch_size)
 ```
-
 
 Making this function configurable in the traditional way would require endless amounts of if-else statements. Let's see how we can clean this up.
 
 We start by installing the required dependencies:
 ```bash
-pip install hydra-zen hydra-core wandb
+pip install hydra-zen hydra-core
 ```
 
 Let's start a new file, to show that you can gradually add better configurations:
@@ -86,14 +84,18 @@ Let's start a new file, to show that you can gradually add better configurations
 from hydra_zen import store, builds
 from eval_model import eval_model, make_mnist_loader, make_cifar_loader
 
-# define a configuration group (contains exchangeable configs for dataloader)
+# define a configuration group (contains exchangeable configs for a dataloader)
 data_store = store(group="dataloader")
-# generated based on the signature of our make_loader functions
-data_store(builds(make_cifar_loader, populate_full_signature=True), name="cifar")
-data_store(builds(make_mnist_loader, populate_full_signature=True), name="mnist")
+# store configs generated based on the signature of our make_loader functions
+# builds creates a dataclass configuration class based on the signature
+CifarConfig = builds(make_cifar_loader, populate_full_signature=True)
+# which can then be added to our store
+data_store(CifarConfig, name="cifar")
+MnistConfig = builds(make_mnist_loader, populate_full_signature=True)
+data_store(MnistConfig, name="mnist")
 
 # create entrypoint config, by inspecting the task_function
-Config = builds(
+MainConfig = builds(
     eval_model,
     populate_full_signature=True,
     hydra_defaults=[
@@ -102,29 +104,28 @@ Config = builds(
     ]
 )
 # store the entrypoint config
-store(Config, name="eval_model")
+store(MainConfig, name="eval_model")
 
-store.add_to_hydra_store(overwrite_ok=True)  # cross the bridge from hydra-zen to hydra
+store.add_to_hydra_store()  # cross the bridge from hydra-zen to hydra
 ```
 
 The main concept of hydra is the *store*. An abstraction layer that only exists in the configuration phase. Everything we add to stores is configurable, either by code or via a CLI.
-Once we launch our script, the store automagically populate the desired target objects and run the task functions.
+Once we launch our script, the store automagically populate the desired target objects and run the task functions with the appropriate parameters.
+In our case we generate a configuration group "dataloader" which can be used to populate any parameter named "dataloader".
 
-In the code above TODO TODO TODO
-
-We can see how it looks by adding a CLI:
+We can test things out by adding a CLI:
 ```python
 if __name__ == "__main__":
     from hydra_zen import zen
 
     # expose cli
     zen(eval_model).hydra_main(
-        config_name="eval_model",
+        config_name="eval_model",  # refers to the name of the MainConfig
         version_base="1.1",
-        config_path=None
     )
 ```
-If we run `python eval_script.py --help` we will get an overview of our configuration as it will be initialized. It should look something like:
+We run `python eval_script.py --help` to get an overview of our configuration as it will be initialized.
+It should look something like:
 ```python
 == Configuration groups ==
 Compose your configuration from those groups (group=option)
@@ -146,17 +147,108 @@ We can see that dataloader is already assigned to be instantiated by make_cifar_
 The value for model is still missing, which makes it impossible to run the script.
 Let's extend the script for a `model_store`:
 
+```python
+model_store = store(group="model")
+```
+TODO see code.py
+
+
+## Experiment Management with Weights&Biases
+
+We start by installing the required dependencies:
+```bash
+pip install wandb
+```
+
+### Combine with Hydra-Zen
+
+We can leverage another powerful feature of Hydra: Callbacks.
+
+Instead of having to wrap every task function in W&B runs, we can define a callback that sets up everything for us.
+
+```python
+import os
+from typing import Any
+
+import wandb
+from hydra import TaskFunction
+from hydra.core.utils import JobReturn, JobStatus
+from hydra.experimental.callback import Callback
+from omegaconf import DictConfig
+
+from src.helpers.wandb import save_results, create_artifact_name
+
+
+class WandBCallback(Callback):
+    def __init__(self, *, project, entity, job_type) -> None:
+        self.project = project
+        self.entity = entity
+        self.job_type = job_type
+
+    def on_job_start(
+            self, config: DictConfig, task_function: TaskFunction
+    ) -> None:
+        wandb.init(
+            project=self.project,
+            entity=self.entity,
+            job_type=self.job_type,
+            # save the hydra config as metadata for the W&B run
+            config={**dict(config)},
+            # hydra already creates an output folder.
+            # We can put everything in the same place.
+            dir=os.getcwd(),  
+        )
+
+    def on_job_end(
+            self, config: DictConfig, job_return: JobReturn
+    ) -> None:
+        assert job_return.status == JobStatus.COMPLETED
+        do_something_with_the_job_results
+        save_results(job_return.return_value, artifact_name=create_artifact_name(config))
+        wandb.finish()
+```
+
+<!-- TODO: describe this callback -->
+
+To include the callback we have to add it do the main HydraConfig:
+```python
+store(
+    HydraConf(
+        callbacks={
+            "wandb": builds(WandBCallback, entity="<wandb_username>",
+                project="<wandb_project_name>", job_type="eval_model",
+                populate_full_signature=True),
+        },
+    ),
+    name="config",
+    group="hydra"
+)
+```
 
 
 ## Glimpse into the Future
 
+I hope this introduction served you well in layout out how we can improve our AI research workflow.
+Both Hydra and W&B are complex systems that offer significanly more functionality for every use case.
 
-## References
+A crucial aspect for many researchers is to run the code on a compute cluster.
+In these HPC Clusters you usually install your code in a directory and then use a bash script to submit a job
+into a management system like SLURM.
+Fortunately Hydra has a powerful plugin system, that offers everything from custom logging to sweeping hyperparameter search.
+
+For slurm you might want to look at [this plugin](https://hydra.cc/docs/plugins/submitit_launcher/). \
+🔜 I am currently testing out this plugin myself and will likely be writing a small follow-up for it.
+
+Furthermore, both Hydra and WandB have an offline mode in case your compute nodes are isolated.
+
+<!-- ## References -->
 
 <!-- TODO: use markdown footnotes -->
 
 # Comments
-<!-- 
+
+Please leave a comment if you have any questions or remarks 😃
+
 <script src="https://giscus.app/client.js"
         data-repo="lukasbm/blog"
         data-repo-id="R_kgDOLBREVQ"
@@ -171,4 +263,4 @@ Let's extend the script for a `model_store`:
         data-lang="en"
         crossorigin="anonymous"
         async>
-</script> -->
+</script>
