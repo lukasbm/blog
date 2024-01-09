@@ -1,11 +1,30 @@
-baseURL: 'http://lukasbm.github.io/'
+baseURL: http://lukasbm.github.io/
 languageCode: en-us
-title: Some Ramblings by Me
 theme: nightfall
 author: Lukas Böhm
-sectionPagesMenu: main
+# sectionPagesMenu: main
 
 markup:
   goldmark:
     renderer:
       unsafe: true
+
+menu:
+  header:
+    - name: posts
+      url: posts
+      weight: 1
+    - name: about
+      url: about
+      weight: 0
+
+params:
+  user: lukas
+  hostname: localhost
+  readingTime: true # Show reading time on post page
+  published: true # Show published data on post page
+  social:
+    - key: 0
+      name: github
+      url: https://github.com/lukasbm
+      # icon : "fa-brands fa-github"
