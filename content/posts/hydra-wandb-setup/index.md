@@ -2,7 +2,6 @@
 title = "A Cleaner Approach To AI Research"
 author = "Lukas Böhm"
 description = "Using tools from MLOps to accelerate your AI research"
-draft = true
 +++
 
 Many researches are often presented with having to evaluate a new model on
