@@ -1,7 +1,7 @@
 +++
-title = "Supercharge your Cluster Computation Using Hydra"
+title = "Supercharge your Cluster Computation Using HydraZen"
 author = "Lukas Böhm"
-description = "Use Hydra Plugings to automatically submit jobs to slurm without having to write shell scripts"
+description = "Use HydraZen with a plugin to automatically submit jobs to slurm without having to write shell scripts"
 draft = True
 +++
 
@@ -16,8 +16,6 @@ The scripts usually look something like this:
 #
 #SBATCH --gres=gpu:rtx2080:1
 #SBATCH --time=03:00:00
-#SBATCH --output=/tmp/%j_out.log
-#SBATCH --error=/tmp/%j_err.log
 
 set -euo pipefail # makes the script stop if any command fails
 
@@ -56,11 +54,34 @@ Here we are installing the the hydra plugin that ships with two new job launcher
 - `submitit_slurm`: Actually launch the SLURM job with all it's parameters (as usually specified by `#SBATCH`)
 
 
+## Configuration
 
+Configuration works as usual, we createt a Config any way we want (`make_config`, `dataclass`, `builds`),
+add it to the store and the select the desired configuration group, maybe even include some overwrites.
 
-We can explore the config as follows:
+As we are dealing with the Job launcher we need to overwrite the internal Hydra Config.
+In Hydra-Zen this will look like this:
+```python
+store(
+    HydraConf(
+        launcher={
+            "timeout_min": 180,
+            "gres": "gpu:1",
+        }
+    ),
+    name="config_slurm",
+    group="hydra"
+)
 ```
-python calculations.py hydra/launcher=submitit_slurm --cfg hydra -p hydra.launcher 
+
+Here we add one possible slurm config to the default hydra groups
+
+<!-- TODO: is this possible? `python calculations.py hydra/launcher=config_slurm` to use the config above? I need something like this -->
+<!-- FIXME: does then next command take the above config into account? -->
+
+To see which settings have been applied and what other settings are available, we can inspect it using the `--cfg` flag with `-p` for printing a specific subconfig:
+```
+python calculations.py hydra/launcher=submitit_slurm --cfg hydra -p hydra.launcher
 ```
 
 
