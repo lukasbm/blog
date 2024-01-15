@@ -2,43 +2,50 @@
 title = "Supercharge your Cluster Computation Using HydraZen"
 author = "Lukas Böhm"
 description = "Use HydraZen with a plugin to automatically submit jobs to slurm without having to write shell scripts"
-draft = True
+draft = true
 +++
 
 In [a previous guide](../hydra-wandb-setup) we explored how we can use Hydra(Zen) and Weights&Biases to speed up our AI research workflow.
 At the end of the last article i mentioned that I'm going to write a follow up for [SLURM](https://slurm.schedmd.com/overview.html), a popular job management system for computer clusters, once I've gotten comfortable with it.
-Well, now that I've spent some time with it, we can dive right into it.
+Well, now that I've spent some time with it i can confidently say that it's a huge timesaver without a high setup cost.
 
-When running a python script on a High performance computer cluster, we usually need to write a shell script that sets up the environment, specifies where to find the source files and allocates the resources (CPU Cores, GPUs, etc.).
+When running a python script on a High performance Compute (HPC) cluster, we usually need to write a shell script that sets up the environment, specifies where to find the source files and allocates the resources (CPU Cores, GPUs, etc.).
 The scripts usually look something like this:
 ```bash
 #!/bin/bash -l
 #
-#SBATCH --gres=gpu:rtx2080:1
-#SBATCH --time=03:00:00
+# Parameters
+#SBATCH --gres=gpu:1  # request one gpu
+#SBATCH --time=03:00:00  # time limit 3 hours
+#SBATCH --job-name=important_calculations
+#SBATCH --output=<output_file>
+#SBATCH -error=<error_file>
 
-set -euo pipefail # makes the script stop if any command fails
+# Setup
+source venv/bin/activate
+export WANDB_MODE=offline
 
-cd <source_directory>
 
-# finicky python conda setup
-module load python3.10
-set +eu
-eval "$(conda shell.bash hook)" || true
-conda activate project-env
-set -eu
-
-srun --unbuffered python3 calculations.py
+# commands
+srun --unbuffered python3 calculations.py params1
+srun --unbuffered python3 calculations.py params2
 ```
 
 This is just a minimal example that could be dozens of lines longer.
 I specifically also omitted the command line arguments for the python script.
 These bash scripts are often required to be duplicated multiple times for different setups and parameters which causes them to be a main source for errors and boilerplate.
+We would also need to specify a location for the output and error files.
 
-To de-deduplicate and improve our workflow, let's see how we can turn the previous code snippet into this equivalent representation: (FIXME: is the sbatch stuff included here?)
+To de-deduplicate and improve our workflow, let's see how we can turn the previous code snippet into this equivalent representation:
 ```bash
-python calculations.py --multirun hydra/launcher=submitit_slurm
+python calculations.py \
+    hydra/launcher=submitit_slurm_custom \
+    params=params1,params2 \
+    --multirun
 ```
+
+As you can see this is significantly shorter.
+Furthermore, this one-liner also takes care of placing the output files in the hydra-run directory and setting up the *job array* for multirun.
 
 ## Getting Started
 
@@ -50,8 +57,8 @@ pip install hydra-submitit-launcher
 
 [Submit It](https://github.com/facebookincubator/submitit) by itself is a python library for submitting jobs to SLURM.
 Here we are installing the the hydra plugin that ships with two new job launchers:
-- `submitit_local`: This can be used for local job running and testing. Therefore has a reduced configuration set
-- `submitit_slurm`: Actually launch the SLURM job with all it's parameters (as usually specified by `#SBATCH`)
+- `submitit_local`: This can be used for local job running and testing. Has a reduced configuration set.
+- `submitit_slurm`: Actually launch the SLURM job with all it's parameters (as usually specified by `#SBATCH`.)
 
 
 ## Configuration
@@ -74,16 +81,54 @@ store(
 )
 ```
 
-Here we add one possible slurm config to the default hydra groups
-
-<!-- TODO: is this possible? `python calculations.py hydra/launcher=config_slurm` to use the config above? I need something like this -->
-<!-- FIXME: does then next command take the above config into account? -->
-
-To see which settings have been applied and what other settings are available, we can inspect it using the `--cfg` flag with `-p` for printing a specific subconfig:
+Here overwrite the default hydra config to set the timeout and resource requirements
+To see which settings have been applied and what other settings are available, we can inspect it using the `--cfg all` flag which shows the config (similar to `--help`, but also including the hydra config) as it will be used in the script.
+We can narrow the output down to a specific subconfig using the `-p` flag.
 ```
-python calculations.py hydra/launcher=submitit_slurm --cfg hydra -p hydra.launcher
+python calculations.py hydra/launcher=submitit_slurm --cfg all -p hydra.launcher
 ```
 
+This is a simple hack to change the default params for the `submitit_slurm` launcher.
+To create exchangeable pre-set configs for the launcher we need to be more specific and overwrite it completely:
+```python
+from hydra_plugins.hydra_submitit_launcher.config import SlurmQueueConf, LocalQueueConf
+
+store(
+    SlurmQueueConf(
+        gres="gpu:1",
+        nodes=1,
+        timeout_min=180,
+        additional_parameters={  # more sbatch parameters (not included in SlurmQueueConf)
+            "clusters": "gpu",
+        },
+        setup=[  # setup commands to run before the job starts
+            "source venv/bin/activate",
+            "export WANDB_MODE=offline",
+        ],
+    ),
+    name="submitit_slurm_small_job",  # preset name
+    group="hydra/launcher",  # add to launcher group config
+    provider="submitit_launcher",  # specifiy that it belong to the launcher
+)
+
+store(
+    SlurmQueueConf(
+        gres="gpu:4",
+        nodes=4,
+        timeout_min=30,
+        additional_parameters={  # more sbatch parameters (not included in SlurmQueueConf)
+            "clusters": "gpu",
+        },
+        setup=[  # setup commands to run before the job starts
+            "source venv/bin/activate",
+            "export WANDB_MODE=offline",
+        ],
+    ),
+    name="submitit_slurm_big_job",  # preset name
+    group="hydra/launcher",  # add to launcher group config
+    provider="submitit_launcher",  # specifiy that it belong to the launcher
+)
+```
 
 
 ## Usage
