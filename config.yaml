@@ -9,6 +9,7 @@ markup:
     renderer:
       unsafe: true
 
+
 menu:
   header:
     - name: posts
@@ -23,6 +24,8 @@ params:
   hostname: localhost
   readingTime: true # Show reading time on post page
   published: true # Show published data on post page
+  # author:
+  #   name: Lukas Böhm
   social:
     - key: 0
       name: github

@@ -1,0 +1,38 @@
+<mxfile host="Electron" modified="2024-01-19T15:38:25.886Z" agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/22.1.21 Chrome/120.0.6099.109 Electron/28.1.0 Safari/537.36" etag="GmYi0h4lQEXa2ldbElmk" version="22.1.21" type="device">
+  <diagram name="Page-1" id="ZgUUKTHsLnRFDgrepDkm">
+    <mxGraphModel dx="768" dy="708" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="_1MORe2XJffC7ita17r6-3" value="generate SLURM submission&lt;br&gt;scripts" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="_1MORe2XJffC7ita17r6-1" target="_1MORe2XJffC7ita17r6-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="_1MORe2XJffC7ita17r6-6" value="srun&amp;nbsp;" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="_1MORe2XJffC7ita17r6-1" target="_1MORe2XJffC7ita17r6-4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="130" y="200" />
+              <mxPoint x="300" y="200" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="_1MORe2XJffC7ita17r6-1" value="main script" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="75" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="_1MORe2XJffC7ita17r6-5" value="load pickled input" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="_1MORe2XJffC7ita17r6-2" target="_1MORe2XJffC7ita17r6-4">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="510" y="210" />
+              <mxPoint x="370" y="210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="_1MORe2XJffC7ita17r6-2" value="SLURM submission scripts&lt;br&gt;&lt;br&gt;pickled input" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;" vertex="1" parent="1">
+          <mxGeometry x="430" y="30" width="140" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="_1MORe2XJffC7ita17r6-4" value="running job" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="270" y="260" width="120" height="60" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

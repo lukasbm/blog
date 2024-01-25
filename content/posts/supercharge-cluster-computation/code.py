@@ -59,7 +59,6 @@ setup_store(
 )
 
 # hacky way to stop runs from crashing
-
 signal.signal(signal.SIGUSR1, signal.SIG_IGN)  # ignore SIGUSR1
 signal.signal(signal.SIGUSR2, signal.SIG_IGN)  # ignore SIGUSR2
 signal.signal(signal.SIGCONT, signal.SIG_IGN)  # ignore SIGCONT
