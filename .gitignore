@@ -16,3 +16,28 @@ hugo.linux
 .vscode/
 .fleet/
 .idea/
+.vscode/
+.fleet/
+
+# tmp / lock files
+*.bkp
+*.tmp
+*.swp
+*.swo
+*.lock
+*.DS_Store
+
+
+# output stuff
+outputs/
+output/
+
+# python stuff
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+
+# generated files
+generated/

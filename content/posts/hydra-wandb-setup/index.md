@@ -38,7 +38,7 @@ To battle these issues we will explore Hydra-Zen (a lightweights Hydra wrapper) 
 Basic tools for configuration like python's `argparse` library require boilerplate to map from the arguments, to the objects or functions they configure and parametrize.
 Hydra, skips this step by mapping a set of yaml configuration file directly to a class or function. "Set of yaml files" sound suspiciously like the aforementioned problem of duplicated scripts that have to be rewritten if the code changes. Yeah, thats exactly the problem with hydra, hence we use [Hydra-Zen](https://mit-ll-responsible-ai.github.io/hydra-zen/), a pure python solution to configuration.
 
-Our other tool, [Weights&Biases](https://wandb.ai/), is used for versioning the outputs and annotating them with metadata.
+The other tool, [Weights&Biases](https://wandb.ai/), is used for versioning the outputs and annotating them with metadata.
 As a MLOps tool it closely follows the style of well known CI&CD platforms, where runs are connected to the artifacts they generate for better reproducibility.
 In our case *runs* relate to the models we are training or the data we are processing and *artifacts* relate to the output they produce like model checkpoints, plots, tables, etc.
 These can be linked together to build a completely reproducible pipeline
@@ -49,7 +49,6 @@ To make this guide more practical, assume the following task function.
 This is our entrypoint we want to make configurable.
 
 ```python
-# in eval_model.py
 from torchvision.datasets import CIFAR10, MNIST
 from torchvision.transforms import ToTensor
 import torch
@@ -57,12 +56,11 @@ import torch
 # task function
 def eval_model(
         model: torch.nn.Module,
-        dataloader: torch.utils.data.Dataloader,
+        dataloader: torch.utils.data.DataLoader,
 ) -> EvalResults: ...
 
 # with the following helper functions:
 def make_cifar_loader(batch_size: int = 64) -> DataLoader:
-
     dataset = CIFAR10(root="data", train=True, transform=ToTensor(), download=True)
     return DataLoader(dataset, batch_size=batch_size)
 
@@ -78,19 +76,22 @@ We start by installing the required dependencies:
 pip install hydra-zen hydra-core
 ```
 
-Let's start a new file, to show that you can gradually add better configurations:
+Now we just have to add some code to build a hierarchical configuration with it:
 ```python
 from hydra_zen import store, builds
-from eval_model import eval_model, make_mnist_loader, make_cifar_loader
 
 # define a configuration group (contains exchangeable configs for a dataloader)
 data_store = store(group="dataloader")
 # store configs generated based on the signature of our make_loader functions
 # builds creates a dataclass configuration class based on the signature
+# `populate_full_signature` tells hydra to build a Config that includes all parameters
+# of the make_cifar_loader function.
 CifarConfig = builds(make_cifar_loader, populate_full_signature=True)
 # which can then be added to our store
 data_store(CifarConfig, name="cifar")
-MnistConfig = builds(make_mnist_loader, populate_full_signature=True)
+# same for mnist
+# we can also overwrite defaults right here
+MnistConfig = builds(make_mnist_loader, batch_size=128, populate_full_signature=True)
 data_store(MnistConfig, name="mnist")
 
 # create entrypoint config, by inspecting the task_function
@@ -109,7 +110,7 @@ store.add_to_hydra_store()  # cross the bridge from hydra-zen to hydra
 ```
 
 The main concept of hydra is the *store*. An abstraction layer that only exists in the configuration phase. Everything we add to stores is configurable, either by code or via a CLI.
-Once we launch our script, the store automagically populate the desired target objects and run the task functions with the appropriate parameters.
+Once we launch our script, the store automagically populates the desired target objects and run the task functions with the appropriate parameters.
 In our case we generate a configuration group "dataloader" which can be used to populate any parameter named "dataloader".
 
 We can test things out by adding a CLI:
@@ -123,7 +124,7 @@ if __name__ == "__main__":
         version_base="1.1",
     )
 ```
-We run `python eval_script.py --help` to get an overview of our configuration as it will be initialized.
+We run `python code.py --help` to get an overview of our configuration as it will be initialized.
 It should look something like:
 ```python
 == Configuration groups ==
@@ -142,14 +143,71 @@ dataloader:
   batch_size: 64
 ```
 
-We can see that dataloader is already assigned to be instantiated by make_cifar_loader with a batch size of 64. However we can easily overwrite this nested value by running `python eval_script.py dataloader.batch_size=128 --help`.
-The value for model is still missing, which makes it impossible to run the script.
+We can see that dataloader is already assigned to be instantiated by make_cifar_loader with a batch size of 64.
+However we can easily overwrite this nested value by running `python code.py dataloader.batch_size=128 --help`.
+This is the power of hierarchical configurations!
+But the value for model is still missing (denoted by `???`), which makes it impossible to run the script.
 Let's extend the script for a `model_store`:
 
 ```python
-model_store = store(group="model")
+# first we need a configurable target.
+# lets create a model loading function for this:
+def load_model(model_name : str) -> torch.nn.Module:
+    model = torch.hub.load('pytorch/vision', model_name, pretrained=True)
+    model.eval()
+    return model
+
+model_store = store(load_model, group="model")
 ```
-TODO see code.py
+
+You might notice this looks different than what we did with the datasets before.
+That is because we are no longer just storing preconfigured configs,
+but rather a completely configurable object.
+This saves us some time as we don't have to store every option as a possible preset,
+but rather have configured a function that can take in any model name!
+
+Also don't forget to update your hydra defaults and hydra store:
+```python
+MainConfig = builds(
+    eval_model,
+    populate_full_signature=True,
+    hydra_defaults=[
+        "_self_",
+        {"dataloader": "cifar"},  # default dataloader is cifar
+        {"model": "load_model"}
+    ]
+)
+store(MainConfig, name="eval_model")
+
+store.add_to_hydra_store()  # cross the bridge from hydra-zen to hydra
+```
+
+We can finally use all of this to run our code:
+```
+python code.py model.model_name=alexnet dataloader=mnist dataloader.batch_size=512 
+```
+
+After you run the code, you might notice a new directory appead: `outputs`.
+This is where all of your outputs along with metadata and log files reside now.
+It is precicely ordered by date and time, so you can find the run immediately.
+Lets look at an example directory:
+```
+<date>
+   |- <time>
+   |    |- .hydra
+   |    |     |- config.yaml  # this is the yaml representation of our MainConfig
+   |    |     |- hydra.yaml  # this is the internal hydra configuration
+   |    |     |- overrides.yaml  # this is the overrides to the previous two
+   |    |- _implementations.log  # the logged outputs
+   |    |- ... possible other output files
+```
+
+
+
+
+TODO also write avbout the output dir hydra generated
+
+TODO and how to configure hydra itself
 
 
 ## Experiment Management with Weights&Biases
