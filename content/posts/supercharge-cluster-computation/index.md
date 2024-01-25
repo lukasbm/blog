@@ -1,8 +1,10 @@
 +++
 title = "Supercharge your Cluster Computation Using HydraZen"
-author = "Lukas Böhm"
 description = "Use HydraZen with a plugin to automatically submit jobs to slurm without having to write shell scripts"
+author = "Lukas Böhm"
 draft = true
+categories = ['Guides']
+tags = ['hydra', 'hydra-zen', 'python', 'research']
 +++
 
 In [a previous guide](../hydra-wandb-setup) we explored how we can use Hydra(Zen) and Weights&Biases to speed up our AI research workflow.

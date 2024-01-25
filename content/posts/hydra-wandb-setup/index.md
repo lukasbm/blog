@@ -1,7 +1,10 @@
 +++
 title = "A Cleaner Approach To AI Research"
-author = "Lukas Böhm"
 description = "Using tools from MLOps to accelerate your AI research"
+author = "Lukas Böhm"
+date = '2024-01-07'
+categories = ['Guides']
+tags = ['wandb', 'hydra', 'hydra-zen', 'python', 'research']
 +++
 
 Many researches are often presented with having to evaluate a new model on
@@ -189,7 +192,7 @@ python code.py model.model_name=alexnet dataloader=mnist dataloader.batch_size=5
 
 After you run the code, you might notice a new directory appead: `outputs`.
 This is where all of your outputs along with metadata and log files reside now.
-It is precicely ordered by date and time, so you can find the run immediately.
+It is handyly ordered by date and time, so you can find the run immediately.
 Lets look at an example directory:
 ```
 <date>
@@ -202,26 +205,41 @@ Lets look at an example directory:
    |    |- ... possible other output files
 ```
 
+<!-- TODO: and how to configure hydra itself -->
 
-
-
-TODO also write avbout the output dir hydra generated
-
-TODO and how to configure hydra itself
+This about wraps up the introduction to hydra itself.
+I urge you to look at the [hydra-zen documentation](https://mit-ll-responsible-ai.github.io/hydra-zen/) as it contains ample tutorials and how to's.
+If you have any questions remaining feel free to leave a comment 😃
 
 
 ## Experiment Management with Weights&Biases
+
+Now on to the second part of our guide, the experiment tracking.
+Configuring it with hydra is only half the rent.
+Even though hydra already nicely organizes the runs in seperate folders,
+we can still improve it by uploading them to W&B to gain some more insights and have a nice interactive dashboard to explore all of the runs.
 
 We start by installing the required dependencies:
 ```bash
 pip install wandb
 ```
 
-### Combine with Hydra-Zen
+Usually you would use weights and biases as follows:
+```python
+config = { ... }
+wandb.init(entity="<your_username>", project="learn_hydra_wandb", config=config)
+# do some calculations ...
+wandb.log({"logging_key": "logging_value"})
+wandb.finish()
+```
 
-We can leverage another powerful feature of Hydra: Callbacks.
+This is a proven workflow, but it has some issues when combined with hydra.
+For one, we somehow need to get hold of the config.
+Secondly, our task function returns a value we might want to automatically log.
 
-Instead of having to wrap every task function in W&B runs, we can define a callback that sets up everything for us.
+To solve both of these issues we can leverage another powerful feature of Hydra: Callbacks.
+
+Instead of having to wrap every task function in W&B runs, we can define a callback that sets up everything for us:
 
 ```python
 import os
@@ -233,14 +251,10 @@ from hydra.core.utils import JobReturn, JobStatus
 from hydra.experimental.callback import Callback
 from omegaconf import DictConfig
 
-from src.helpers.wandb import save_results, create_artifact_name
-
-
 class WandBCallback(Callback):
-    def __init__(self, *, project, entity, job_type) -> None:
+    def __init__(self, *, project: str, entity: str) -> None:
         self.project = project
         self.entity = entity
-        self.job_type = job_type
 
     def on_job_start(
             self, config: DictConfig, task_function: TaskFunction
@@ -248,8 +262,7 @@ class WandBCallback(Callback):
         wandb.init(
             project=self.project,
             entity=self.entity,
-            job_type=self.job_type,
-            # save the hydra config as metadata for the W&B run
+            # save the config as metadata for the W&B run
             config={**dict(config)},
             # hydra already creates an output folder.
             # We can put everything in the same place.
@@ -259,22 +272,23 @@ class WandBCallback(Callback):
     def on_job_end(
             self, config: DictConfig, job_return: JobReturn
     ) -> None:
-        assert job_return.status == JobStatus.COMPLETED
-        do_something_with_the_job_results
-        save_results(job_return.return_value, artifact_name=create_artifact_name(config))
+        assert job_return.status == JobStatus.COMPLETED, "job did not complete!"
+        results = job_return.return_value
+        wandb.log({"results": results})
         wandb.finish()
 ```
 
-<!-- TODO: describe this callback -->
+The structure of Callbacks is simple: we just need to set up a function that runs before the task function, and some code snippet that runs after it.
+In our case we need to setup wandb beforehand and the Callback gives us nice access to the config.
+Of course you are also free to spread `wandb.log` calls all around your project to log in-between! 
 
-To include the callback we have to add it do the main HydraConfig:
+To include the callback we have to add it do the main store, which is defined by `HydraConfig`:
 ```python
 store(
     HydraConf(
         callbacks={
             "wandb": builds(WandBCallback, entity="<wandb_username>",
-                project="<wandb_project_name>", job_type="eval_model",
-                populate_full_signature=True),
+                project="learn_hydra_wandb", populate_full_signature=True),
         },
     ),
     name="config",
@@ -282,21 +296,26 @@ store(
 )
 ```
 
+Now we completely revamped our workflow without even needing to touch the initial codebase.
+In case you found the barrage of code snippets confusing, you can find the entire code [here](./code.py).
+
 
 ## Glimpse into the Future
 
-I hope this introduction served you well in layout out how we can improve our AI research workflow.
+I hope this introduction served you well in laying out how we can improve our AI research workflow.
 Both Hydra and W&B are complex systems that offer significanly more functionality for every use case.
+Feel free to look at the respective documentations!
 
 A crucial aspect for many researchers is to run the code on a compute cluster.
-In these HPC Clusters you usually install your code in a directory and then use a bash script to submit a job
-into a management system like SLURM.
+In these HPC Clusters you usually install your code in a directory and then use a bash script to submit a job into a management system like SLURM.
 Fortunately Hydra has a powerful plugin system, that offers everything from custom logging to sweeping hyperparameter search.
 
 For slurm you might want to look at [this plugin](https://hydra.cc/docs/plugins/submitit_launcher/). \
 🔜 I am currently testing out this plugin myself and will likely be writing a small follow-up for it.
 
 Furthermore, both Hydra and WandB have an offline mode in case your compute nodes are isolated.
+
+<!-- TODO: talk about multi run -->
 
 <!-- ## References -->
 
