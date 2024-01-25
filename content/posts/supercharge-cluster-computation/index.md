@@ -1,5 +1,5 @@
 +++
-title = "Supercharge your Cluster Computation Using HydraZen"
+title = "Supercharge your Cluster Computation"
 description = "Use HydraZen with a plugin to automatically submit jobs to slurm without having to write shell scripts"
 author = "Lukas Böhm"
 draft = true
@@ -174,19 +174,54 @@ Running this creates a new run directory in the desired location.
 If you look really close you will see that there's a new hidden folder included now called `.submitit`.
 This is where everything related to slurm ends up: The submission script, the log files whose location we no longer have to specify manually, etc.
 
-Now that we have our new launcher set up, let's see how easy it is to launch jobs.
-
-One note beforehand: The submitit launcher only works in multirun mode.
-So make sure to always set the `--multirun` flag even if you are only planning one run.
+Another thing you might have notices is the `--multirun` flag, even though we are only doing a single run.
+This flag is required in _every case_ so make sure not to forget it.
+Otherwise submitit will not be invoked and the job will run locally without SLURM. 
 
 ## Background
 
-<!-- Explain how jobs are launched (diagram?) -->
+The entire process combining hydra, submitit and SLURM can feel very complicated.
 
+<!-- TODO: Explain how jobs are launched (diagram?) -->
 
 ## Caveats
 
-<!-- Signal handling -->
-
+SLURM is not always configured in the same way on every compute cluster.
+One of the differences (which can be annoying) is signal handling.
+submitit has waiting mechanisms which periodically sends signals to the running jobs to make sure they are still responsive (and not done yet).
+Unfortunately things can go wrong if the signals cannot be delivered or your HPC has reconfigured them.
+In this case the submitit signals might even cause termination of the job.
+A simple (yet hacky) way to circumvent this issue, is to just prevent the running jobs (which also include the submitit runtime) from handling the signals.
+We can do this by explicitly ignoring them:
+```python
+signal.signal(signal.SIGUSR1, signal.SIG_IGN)  # ignore SIGUSR1
+signal.signal(signal.SIGUSR2, signal.SIG_IGN)  # ignore SIGUSR2
+signal.signal(signal.SIGCONT, signal.SIG_IGN)  # ignore SIGCONT
+signal.signal(signal.SIGTERM, signal.SIG_IGN)  # ignore SIGTERM
+signal.signal(signal.SIGHUP, signal.SIG_IGN)  # ignore SIGTSTP
+```
+NOTE: this is a very hacky solution and might even ignore important signals from applications other than submitit!
 
 ## Conclusion
+
+Due to the chaotic nature of server setups this guide did not turn out as clean as i hoped for it to be.
+For many issues i just had to take a guess to make them work, so they might not be the best solution.
+In such cases, please leave a comment if you have ideas on how to improve things.
+
+# Comments
+
+<script src="https://giscus.app/client.js"
+        data-repo="lukasbm/blog"
+        data-repo-id="R_kgDOLBREVQ"
+        data-category="General"
+        data-category-id="DIC_kwDOLBREVc4CcOfk"
+        data-mapping="title"
+        data-strict="0"
+        data-reactions-enabled="1"
+        data-emit-metadata="0"
+        data-input-position="top"
+        data-theme="preferred_color_scheme"
+        data-lang="en"
+        crossorigin="anonymous"
+        async>
+</script>
